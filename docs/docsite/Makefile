@@ -5,10 +5,21 @@ TESTING_FORMATTER=../bin/testing_formatter.sh
 DUMPER=../bin/dump_keywords.py
 CONFIG_DUMPER=../bin/dump_config.py
 GENERATE_CLI=../bin/generate_man.py
+SPHINX_PYPY?=no
+
 ifeq ($(shell echo $(OS) | egrep -ic 'Darwin|FreeBSD|OpenBSD|DragonFly'),1)
 CPUS ?= $(shell sysctl hw.ncpu|awk '{print $$2}')
 else
 CPUS ?= $(shell nproc)
+endif
+
+ifeq ($(SPHINX_PYPY),yes)
+SPHINXBUILD= \
+"pypy $(shell which sphinx-build)"
+PYTHONPATH=/usr/lib/python2.7/site-packages:/usr/lib64/python2.7/site-packages
+export PYTHONPATH
+else
+SPHINXBUILD=sphinx-build
 endif
 
 # Sets the build output directory if it's not already specified
@@ -40,10 +51,10 @@ docs: clean htmldocs
 generate_rst: staticmin config cli keywords modules plugins testing
 
 htmldocs: generate_rst
-	CPUS=$(CPUS) $(MAKE) -f Makefile.sphinx html
+	CPUS=$(CPUS) $(MAKE) -f Makefile.sphinx html SPHINXBUILD=$(SPHINXBUILD)
 
 singlehtmldocs: generate_rst
-	CPUS=$(CPUS) $(MAKE) -f Makefile.sphinx singlehtml
+	CPUS=$(CPUS) $(MAKE) -f Makefile.sphinx singlehtml SPHINXBUILD=$(SPHINXBUILD)
 
 webdocs: docs
 
