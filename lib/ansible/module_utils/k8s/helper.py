@@ -469,19 +469,45 @@ class AnsibleMixin(object):
             for item in request_value:
                 found = False
                 for obj in src_value:
-                    match = True
-                    for item_key, item_value in iteritems(item):
-                        # TODO: this should probably take the property type into account
-                        snake_key = self.attribute_to_snake(item_key)
-                        if getattr(obj, snake_key) != item_value:
-                            match = False
-                            break
-                    if match:
+                    if self.__compare_obj_list_obj(obj, item, obj_class, None):
                         found = True
                         break
                 if not found:
                     obj = self.model_class_from_name(obj_class)(**item)
                     src_value.append(obj)
+                    return False
+            return True
+
+    def __compare_obj_list_obj(self, src_value, request_value, kind, param_name=None):
+        """
+        Compare a src_value (object) with a request_value (dict) recursively and returns True if they match
+        Used by __compare_obj_list if key is not defined for the list items, for example in ingress cases
+        """
+        if src_value == request_value:
+            return True
+
+        if kind in PRIMITIVES:
+            # Primitives should have matched equality already
+            return False
+
+        if kind.startswith('list['):
+            # Recurse if it's list
+            obj_type = kind.replace('list[', '').replace(']', '')
+            return self.__compare_obj_list(src_value, request_value, obj_type, param_name)
+
+        match = True
+        # Kind is probably object
+        model = self.model_class_from_name(kind)
+        for key, val in iteritems(model.attribute_map):
+            sub_kind = model.swagger_types[key]
+            snake_key = self.attribute_to_snake(key)
+            sub_src_val = getattr(src_value, snake_key)
+            sub_req_val = request_value.get(val)
+            if not self.__compare_obj_list_obj(sub_src_val, sub_req_val, sub_kind, key):
+                match = False
+                break
+
+        return match
 
     def __update_object_properties(self, obj, item):
         """ Recursively update an object's properties. Returns a pointer to the object. """
