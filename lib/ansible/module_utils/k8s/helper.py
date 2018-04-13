@@ -381,7 +381,9 @@ class AnsibleMixin(object):
         if not request_value:
             return
 
-        model_class = self.model_class_from_name(obj_class)
+        model_class = None
+        if obj_class not in PRIMITIVES:
+            model_class = self.model_class_from_name(obj_class)
 
         # Try to determine the unique key for the array
         key_names = [
